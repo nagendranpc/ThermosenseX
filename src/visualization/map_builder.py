@@ -197,8 +197,7 @@ def build_map(
     m.get_root().html.add_child(folium.Element(legend_html))
 
     # ── Controls ──────────────────────────────────────────────────────────────
-    folium.LayerControl(collapsed=False, position="topright").add_to(m)
-    MiniMap(position="bottomleft", toggle_display=True, tile_layer="CartoDB dark_matter").add_to(m)
+    folium.LayerControl(collapsed=True, position="topright").add_to(m)
 
     logger.info(f"Map built with {len(gdf)} detections.")
     return m
@@ -269,21 +268,25 @@ def _build_popup(row: pd.Series, class_col: str) -> str:
 
 def _build_legend() -> str:
     items = "".join(
-        f'<div style="margin:4px 0;"><span style="background:{s["color"]};'
-        f'display:inline-block;width:14px;height:14px;border-radius:50%;'
-        f'vertical-align:middle;margin-right:6px;"></span>'
-        f'{_cls_emoji(cls)} {cls.replace("_"," ").title()}</div>'
+        f'<div style="margin:3px 0;display:flex;align-items:center;gap:6px;">'
+        f'<span style="background:{s["color"]};display:inline-block;width:10px;height:10px;'
+        f'border-radius:50%;flex-shrink:0;box-shadow:0 0 4px {s["color"]};"></span>'
+        f'<span style="font-size:11px;color:#e2e8f0;white-space:nowrap;">{_cls_emoji(cls)} {cls.replace("_"," ").title()}</span>'
+        f'</div>'
         for cls, s in CLASS_STYLE.items()
     )
     return f"""
-    <div style="position:fixed;bottom:30px;right:15px;z-index:9999;
-                background:rgba(14,17,23,0.92);border:1px solid #333;
-                border-radius:10px;padding:14px 18px;color:#eee;
-                font-family:Segoe UI,Arial,sans-serif;font-size:13px;
-                box-shadow:0 4px 15px rgba(0,0,0,0.5);">
-      <b style="font-size:14px;">🔥 Detection Classes</b><hr style="border-color:#444;margin:6px 0;">
+    <div style="position:absolute;bottom:25px;left:15px;z-index:999;
+                background:rgba(15,23,42,0.92);backdrop-filter:blur(8px);
+                border:1px solid rgba(255,255,255,0.12);border-radius:8px;
+                padding:10px 14px;color:#f8fafc;font-family:Inter,Segoe UI,Arial,sans-serif;
+                box-shadow:0 4px 16px rgba(0,0,0,0.6);pointer-events:auto;">
+      <div style="font-size:11.5px;font-weight:700;color:#38bdf8;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">
+        🔥 Detection Classes
+      </div>
       {items}
-      <hr style="border-color:#444;margin:6px 0;">
-      <div style="font-size:11px;color:#888;">Circle size ∝ FRP intensity</div>
+      <div style="font-size:9px;color:#94a3b8;margin-top:6px;border-top:1px solid rgba(255,255,255,0.08);padding-top:4px;">
+        Circle size ∝ FRP intensity
+      </div>
     </div>
     """
