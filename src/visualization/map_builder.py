@@ -192,12 +192,43 @@ def build_map(
             ).add_to(fg_esc)
         fg_esc.add_to(m)
 
-    # ── Legend ────────────────────────────────────────────────────────────────
+    # ── Map Controls & Dark Styling ───────────────────────────────────────────
+    custom_map_css = """
+    <style>
+    .leaflet-control-layers {
+        background: rgba(15, 23, 42, 0.92) !important;
+        backdrop-filter: blur(8px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        border-radius: 8px !important;
+        color: #f8fafc !important;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6) !important;
+        font-family: 'Inter', Segoe UI, Arial, sans-serif !important;
+        font-size: 11px !important;
+        max-height: 260px !important;
+        overflow-y: auto !important;
+        padding: 8px 12px !important;
+    }
+    .leaflet-control-layers-toggle {
+        background-color: rgba(15, 23, 42, 0.88) !important;
+        border-radius: 6px !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    }
+    .leaflet-control-layers label {
+        color: #cbd5e1 !important;
+        margin-bottom: 2px !important;
+        cursor: pointer;
+    }
+    .leaflet-control-layers label:hover {
+        color: #38bdf8 !important;
+    }
+    </style>
+    """
+    m.get_root().html.add_child(folium.Element(custom_map_css))
+    folium.LayerControl(collapsed=True, position="topright").add_to(m)
+
+    # ── Legend (Bottom Left) ──────────────────────────────────────────────────
     legend_html = _build_legend()
     m.get_root().html.add_child(folium.Element(legend_html))
-
-    # ── Controls ──────────────────────────────────────────────────────────────
-    folium.LayerControl(collapsed=True, position="topright").add_to(m)
 
     logger.info(f"Map built with {len(gdf)} detections.")
     return m
