@@ -226,10 +226,6 @@ def build_map(
     m.get_root().html.add_child(folium.Element(custom_map_css))
     folium.LayerControl(collapsed=True, position="topright").add_to(m)
 
-    # ── Legend (Bottom Left) ──────────────────────────────────────────────────
-    legend_html = _build_legend()
-    m.get_root().html.add_child(folium.Element(legend_html))
-
     logger.info(f"Map built with {len(gdf)} detections.")
     return m
 
