@@ -144,15 +144,16 @@ def build_map(
 
     for cls, style in CLASS_STYLE.items():
         cls_gdf = gdf[gdf.get(class_col, pd.Series()) == cls] if not gdf.empty else gdf.iloc[0:0]
-        show_layer = cls in ("INDUSTRIAL_FIRE", "PERSISTENT_THERMAL", "WILDFIRE")
+        # Show all thermal detection layers by default so no thermal signatures are hidden
+        show_layer = True
         fg = folium.FeatureGroup(name=f"{_cls_emoji(cls)} {cls} ({len(cls_gdf)})", show=show_layer)
 
         cluster = MarkerCluster(
-            options={"maxClusterRadius": 40, "spiderfyOnMaxZoom": True}
+            options={"maxClusterRadius": 25, "disableClusteringAtZoom": 7, "spiderfyOnMaxZoom": True}
         )
 
-        # Plot top 1500 by FRP per class for optimal map responsiveness
-        plot_gdf = cls_gdf.sort_values("frp", ascending=False).head(1500) if "frp" in cls_gdf.columns else cls_gdf.head(1500)
+        # Plot all thermal detections in this class
+        plot_gdf = cls_gdf
 
         for _, row in plot_gdf.iterrows():
             popup_html = _build_popup(row, class_col)

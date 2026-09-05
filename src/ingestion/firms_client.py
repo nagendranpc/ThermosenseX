@@ -154,8 +154,37 @@ def _generate_mock_data(bbox: str, days: int, sources: List[str]) -> pd.DataFram
                 "_source":          source_tag,
             })
 
+    # Generate distributed regional thermal clusters across the entire active bbox
+    n_extra = max(300, min(1500, int((east - west) * (north - south) * 4)))
+    for _ in range(n_extra):
+        obs_date = start_date + timedelta(days=int(rng.integers(0, max(1, days))))
+        lat = round(float(rng.uniform(south, north)), 6)
+        lon = round(float(rng.uniform(west, east)), 6)
+        frp = round(float(rng.exponential(scale=18.0) + 1.5), 2)
+        sat_name, instrument, source_tag = random.choice(_SENSORS)
+        daynight = random.choice(["D", "N"])
+        acq_time = int(rng.integers(600, 1400)) if daynight == "D" else int(rng.integers(0, 600))
+        records.append({
+            "latitude":   lat,
+            "longitude":  lon,
+            "bright_ti4": round(300 + frp * 1.1, 2),
+            "bright_ti5": round(270 + frp * 0.5, 2),
+            "scan":       round(rng.uniform(0.3, 1.2), 2),
+            "track":      round(rng.uniform(0.3, 1.2), 2),
+            "acq_date":   obs_date.strftime("%Y-%m-%d"),
+            "acq_time":   f"{acq_time:04d}",
+            "satellite":  sat_name,
+            "instrument": instrument,
+            "confidence": "nominal" if frp < 30 else "high",
+            "version":    "2.0NRT",
+            "frp":        round(frp, 2),
+            "daynight":   daynight,
+            "type":       0,
+            "_source":    source_tag,
+        })
+
     df = pd.DataFrame(records)
-    logger.info(f"[MOCK] Generated {len(df)} synthetic detections for bbox={bbox}, days={days}")
+    logger.info(f"[MOCK] Generated {len(df)} synthetic detections across bbox={bbox}, days={days}")
     return df
 
 
@@ -299,6 +328,10 @@ class FIRMSClient:
             return self._standardize_geodataframe(gdf)
         else:
             df = pd.read_csv(file_path, nrows=max_records)
+            df.columns = [c.lower() for c in df.columns]
+            if bbox_tuple and "latitude" in df.columns and "longitude" in df.columns:
+                w, s, e, n = bbox_tuple
+                df = df[(df["latitude"] >= s) & (df["latitude"] <= n) & (df["longitude"] >= w) & (df["longitude"] <= e)]
             return self._to_geodataframe(df)
 
     def _standardize_geodataframe(self, gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:

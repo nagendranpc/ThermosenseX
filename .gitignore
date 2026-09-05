@@ -21,10 +21,12 @@ ENV/
 # Data directories & Large files (NASA FIRMS zip files exceed GitHub 100MB limit)
 data/raw/*
 !data/raw/.gitkeep
+!data/raw/sample_firms_india.csv
 data/processed/*
 !data/processed/.gitkeep
 data/osm/*
 !data/osm/.gitkeep
+!data/osm/*.geojson
 data/sentinel/*
 !data/sentinel/.gitkeep
 data/model/*.pkl

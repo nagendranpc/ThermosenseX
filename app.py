@@ -661,12 +661,12 @@ with tab_map:
         with m_ctrl2:
             st.markdown(f"""
             <div style="text-align:right;font-size:11px;color:#94a3b8;font-family:'JetBrains Mono',monospace;">
-              Showing Top {min(len(fire_gdf), 5000):,} of {len(fire_gdf):,} Detections
+              Displaying All {len(fire_gdf):,} Identified Thermal Signatures
             </div>
             """, unsafe_allow_html=True)
 
         with st.spinner("Rendering geospatial thermal canvas …"):
-            map_data = fire_gdf.sort_values("frp", ascending=False).head(5000) if len(fire_gdf) > 5000 else fire_gdf
+            map_data = fire_gdf
             fmap = build_map(map_data, osm_gdf, alerts)
             map_html = fmap._repr_html_()
         
