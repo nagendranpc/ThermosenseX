@@ -1,0 +1,52 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+*.log
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Environment and secrets
+.env
+.env.local
+*.pem
+*.key
+
+# Data directories & Large files (NASA FIRMS zip files exceed GitHub 100MB limit)
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+data/osm/*
+!data/osm/.gitkeep
+data/sentinel/*
+!data/sentinel/.gitkeep
+data/model/*.pkl
+
+# Large datasets & databases
+*.zip
+*.tar.gz
+*.db
+*.sqlite
+*.sqlite3
+*.shp
+*.shx
+*.dbf
+*.prj
+*.geojson
+
+# Output directories
+outputs/*
+!outputs/.gitkeep
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,37 @@
+# Core geospatial & data
+pandas>=2.0.0
+geopandas>=0.14.0
+shapely>=2.0.0
+numpy>=1.24.0
+pyarrow>=14.0.0
+
+# Clustering & ML
+scikit-learn>=1.4.0
+xgboost>=2.0.0
+joblib>=1.3.0
+
+# Satellite APIs
+requests>=2.31.0
+sentinelhub>=3.9.0     # Optional: Copernicus CDSE for Sentinel-2 verification
+
+# Geohash
+python-geohash>=0.8.5
+
+# Visualization
+folium>=0.16.0
+branca>=0.7.0
+plotly>=5.18.0
+matplotlib>=3.8.0
+seaborn>=0.13.0
+
+# Streamlit dashboard
+streamlit>=1.34.0
+streamlit-folium>=0.20.0
+
+# Config & CLI
+pyyaml>=6.0.0
+click>=8.1.0
+python-dotenv>=1.0.0
+
+# Progress & utilities
+tqdm>=4.66.0

@@ -1,0 +1,125 @@
+# ─────────────────────────────────────────────────────────────────
+#  Industrial Fire Detection System — Main Configuration
+# ─────────────────────────────────────────────────────────────────
+
+# Default region of interest (India)
+region:
+  name: india
+  bbox: "68,8,97,37"   # west,south,east,north
+
+# Named region shortcuts
+regions:
+  india:         "68,8,97,37"
+  north_america: "-125,24,-65,50"
+  us_gulf_coast: "-98,25,-88,32"
+  middle_east:   "35,12,65,38"
+  global:        "world"
+  siberia:       "60,50,120,75"
+  europe:        "-10,35,40,72"
+
+# ── FIRMS Data Sources ───────────────────────────────────────────
+firms:
+  base_url: "https://firms.modaps.eosdis.nasa.gov/api/area/csv"
+  default_sources:
+    - VIIRS_SNPP_NRT
+    - VIIRS_NOAA20_NRT
+    - MODIS_NRT
+  default_days: 7
+  max_retries: 3
+  retry_delay_seconds: 5
+
+# ── Sensor Pixel Buffer (meters) ─────────────────────────────────
+sensor_buffers:
+  VIIRS: 375
+  MODIS: 1000
+  default: 500
+
+# ── DBSCAN Clustering ────────────────────────────────────────────
+clustering:
+  eps_meters: 750       # max distance between cluster points
+  min_samples: 1        # minimum points to form a cluster
+  algorithm: ball_tree
+  metric: haversine
+
+# ── Escalation Engine ────────────────────────────────────────────
+escalation:
+  window_days: 14         # rolling lookback window
+  z_score_threshold: 3.0  # sigma above baseline to trigger escalation
+  min_observations: 5     # minimum history points required
+  min_frp_spike_mw: 30    # absolute MW floor to avoid noise escalations
+
+# ── Classification Thresholds ────────────────────────────────────
+classification:
+  # Rule-based thresholds
+  frp_industrial_fire_min_mw: 50
+  frp_wildfire_min_mw: 15
+  frp_agricultural_max_mw: 60
+  persistence_persistent_thermal_days: 4
+  persistence_wildfire_max_days: 3
+
+  # Thermal fingerprint thresholds
+  stability_score_industrial: 0.70   # > this = stable industrial source
+  spatial_variance_wildfire: 0.001   # > this = moving front
+  centroid_drift_wildfire_km: 0.3    # > this/day = moving fire
+
+  # False-positive filter
+  swir_reflectance_threshold: 0.30   # > this = likely solar glare
+  nir_reflectance_threshold: 0.25
+  fp_frp_ceiling_mw: 5               # detections below this MW always checked for FP
+
+# ── OSM Hazard Matrix ────────────────────────────────────────────
+osm_hazard:
+  tier1_critical:
+    weight: 1.0
+    tags:
+      - {key: industrial, value: refinery}
+      - {key: industrial, value: oil}
+      - {key: man_made, value: petroleum_well}
+      - {key: industrial, value: chemical_works}
+      - {key: man_made, value: pipeline}
+  tier2_high:
+    weight: 0.7
+    tags:
+      - {key: power, value: plant}
+      - {key: man_made, value: works}
+      - {key: industrial, value: steel}
+      - {key: industrial, value: foundry}
+      - {key: industrial, value: smelting}
+  tier3_moderate:
+    weight: 0.4
+    tags:
+      - {key: landuse, value: industrial}
+      - {key: man_made, value: storage_tank}
+      - {key: industrial, value: warehouse}
+  tier4_low:
+    weight: 0.1
+    tags:
+      - {key: landuse, value: quarry}
+      - {key: man_made, value: chimney}
+      - {key: industrial, value: port}
+
+# ── OSM API ──────────────────────────────────────────────────────
+osm:
+  overpass_url: "https://overpass-api.de/api/interpreter"
+  cache_dir: "data/osm"
+  cache_ttl_hours: 24
+
+# ── Optical Verification ─────────────────────────────────────────
+optical:
+  enabled: true                # set false to skip entirely
+  cloud_cover_max_pct: 30
+  scene_window_days: 3        # ± days around detection date
+  swir_band: B11
+  nir_band: B08
+  nbr_fire_threshold: -0.20   # NBR below this confirms active burn
+
+# ── Paths ────────────────────────────────────────────────────────
+paths:
+  raw_data: "data/raw"
+  osm_cache: "data/osm"
+  sentinel_cache: "data/sentinel"
+  clusters: "data/processed/clusters"
+  site_history_db: "data/processed/site_history/history.db"
+  outputs_maps: "outputs/maps"
+  outputs_reports: "outputs/reports"
+  model_path: "data/model/fire_classifier.pkl"
