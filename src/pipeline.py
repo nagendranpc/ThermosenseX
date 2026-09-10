@@ -207,15 +207,21 @@ class FireDetectionPipeline:
         if "geohash" in gdf.columns:
             return gdf
         try:
-            import geohash as gh_lib
+            import pygeohash as gh_lib
             gdf["geohash"] = gdf.apply(
                 lambda r: gh_lib.encode(r["latitude"], r["longitude"], precision=7), axis=1
             )
         except ImportError:
-            gdf["geohash"] = (
-                gdf["latitude"].round(2).astype(str) + "_" +
-                gdf["longitude"].round(2).astype(str)
-            )
+            try:
+                import geohash as gh_lib
+                gdf["geohash"] = gdf.apply(
+                    lambda r: gh_lib.encode(r["latitude"], r["longitude"], precision=7), axis=1
+                )
+            except ImportError:
+                gdf["geohash"] = (
+                    gdf["latitude"].round(2).astype(str) + "_" +
+                    gdf["longitude"].round(2).astype(str)
+                )
         return gdf
 
     def _add_persistence_days(self, gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:

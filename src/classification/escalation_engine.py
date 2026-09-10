@@ -95,18 +95,24 @@ class EscalationEngine:
     def _assign_geohash(self, gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         """Assign geohash-7 codes (~150m precision) to group nearby detections."""
         try:
-            import geohash as gh_lib
+            import pygeohash as gh_lib
             gdf["geohash"] = gdf.apply(
                 lambda r: gh_lib.encode(r["latitude"], r["longitude"], precision=7),
                 axis=1,
             )
         except ImportError:
-            # Fallback: round to 2 decimal places (~1 km grid)
-            logger.warning("python-geohash not available — using rounded coords as site key.")
-            gdf["geohash"] = (
-                gdf["latitude"].round(2).astype(str) + "_" +
-                gdf["longitude"].round(2).astype(str)
-            )
+            try:
+                import geohash as gh_lib
+                gdf["geohash"] = gdf.apply(
+                    lambda r: gh_lib.encode(r["latitude"], r["longitude"], precision=7),
+                    axis=1,
+                )
+            except ImportError:
+                # Fallback: round to 2 decimal places (~1 km grid)
+                gdf["geohash"] = (
+                    gdf["latitude"].round(2).astype(str) + "_" +
+                    gdf["longitude"].round(2).astype(str)
+                )
         return gdf
 
     def _get_history(
