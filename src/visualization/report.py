@@ -442,3 +442,112 @@ def chart_thermosense_risk_gauge(score: int, status: str = "NORMAL") -> go.Figur
         font=CHART_THEME["font"],
     )
     return fig
+
+
+def chart_geostationary_rapid_cadence(facility_name: str, gdf: gpd.GeoDataFrame) -> go.Figure:
+    """
+    Plots high-frequency 10-minute cadence observations from Geostationary Satellites
+    (Himawari-9, INSAT-3DR, GOES, Meteosat) for a monitored facility.
+    Shows continuous real-time thermal tracking progression across the day.
+    """
+    if gdf.empty:
+        return go.Figure()
+
+    # Filter by facility if available
+    fac_df = gdf[gdf.get("osm_facility_name", "") == facility_name].copy() if "osm_facility_name" in gdf.columns else gdf.copy()
+    if fac_df.empty:
+        fac_df = gdf.copy()
+
+    # Filter for GEO detections if present, otherwise use all detections for the facility
+    geo_df = fac_df[fac_df.get("orbit_type", "") == "GEOSTATIONARY"].copy()
+    if geo_df.empty:
+        geo_df = fac_df.copy()
+
+    # Sort chronologically by acq_date and acq_time
+    geo_df["time_sort"] = geo_df["acq_time"].astype(str).str.zfill(4)
+    geo_df = geo_df.sort_values(["acq_date", "time_sort"])
+
+    # Take the latest day (today)
+    if "acq_date" in geo_df.columns:
+        latest_date = geo_df["acq_date"].max()
+        today_geo = geo_df[geo_df["acq_date"] == latest_date].copy()
+    else:
+        today_geo = geo_df.copy()
+
+    if today_geo.empty:
+        today_geo = geo_df.tail(72).copy()
+
+    today_geo["time_formatted"] = today_geo["time_sort"].apply(lambda t: f"{t[:2]}:{t[2:4]} UTC" if len(t) >= 4 else str(t))
+
+    # Calculate baseline and spike thresholds
+    base_frp = float(today_geo["baseline_frp"].iloc[0]) if "baseline_frp" in today_geo.columns and not pd.isna(today_geo["baseline_frp"].iloc[0]) else float(today_geo["frp"].quantile(0.25))
+    spike_thresh = base_frp + 2.5 * max(5.0, float(today_geo["frp"].std() if len(today_geo) > 2 else 10.0))
+
+    # Point colors: cyan for normal observations, red/orange for spikes
+    marker_colors = [
+        "#FF334B" if val >= spike_thresh else ("#00E5FF" if val > base_frp * 1.3 else "#38BDF8")
+        for val in today_geo["frp"]
+    ]
+
+    fig = go.Figure()
+
+    # Baseline horizontal line
+    fig.add_hline(
+        y=base_frp,
+        line_dash="dash",
+        line_color="#10B981",
+        line_width=1.5,
+        annotation_text=f"Learned Facility Baseline ({base_frp:.1f} MW)",
+        annotation_position="bottom right",
+        annotation_font=dict(size=10, color="#10B981"),
+    )
+
+    # Spike alert line
+    fig.add_hline(
+        y=spike_thresh,
+        line_dash="dot",
+        line_color="#FF334B",
+        line_width=1.5,
+        annotation_text=f"Abnormal Escalation Threshold ({spike_thresh:.1f} MW)",
+        annotation_position="top right",
+        annotation_font=dict(size=10, color="#FF334B"),
+    )
+
+    # Main 10-min cadence continuous line trace
+    satellite_label = today_geo["satellite"].iloc[0] if "satellite" in today_geo.columns and not today_geo.empty else "Himawari-9 / INSAT-3DR (GEO)"
+    fig.add_trace(go.Scatter(
+        x=today_geo["time_formatted"],
+        y=today_geo["frp"],
+        mode="lines+markers",
+        name=f"GEO 10-Min FRP (MW) · {satellite_label}",
+        line=dict(color="#00E5FF", width=2.5, shape="spline"),
+        marker=dict(size=7, color=marker_colors, line=dict(width=1.5, color="#FFFFFF")),
+        hovertemplate="<b>Time:</b> %{x}<br><b>FRP:</b> %{y:.1f} MW<br><b>Satellite:</b> " + str(satellite_label) + "<extra></extra>",
+    ))
+
+    fig.update_layout(
+        title=dict(
+            text=f"<b>🛰️ GEOSTATIONARY REAL-TIME 10-MINUTE CADENCE TRACKING — {facility_name.upper()}</b>",
+            font=dict(size=12, color="#00E5FF")
+        ),
+        template="plotly_dark",
+        paper_bgcolor=CHART_THEME["paper_bgcolor"],
+        plot_bgcolor=CHART_THEME["plot_bgcolor"],
+        font=CHART_THEME["font"],
+        height=320,
+        margin=dict(l=10, r=20, t=45, b=20),
+        xaxis=dict(
+            title=dict(text="Observation Timestamp (UTC · 10-Minute Intervals)", font=dict(size=10, color="#94A3B8")),
+            showgrid=False,
+            tickfont=dict(size=9, color="#CBD5E1"),
+            tickangle=-45,
+            nticks=20,
+        ),
+        yaxis=dict(
+            title=dict(text="Fire Radiative Power (MW)", font=dict(size=10, color="#00E5FF")),
+            showgrid=True,
+            gridcolor="rgba(255,255,255,0.06)",
+        ),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=10, color="#CBD5E1")),
+    )
+    return fig

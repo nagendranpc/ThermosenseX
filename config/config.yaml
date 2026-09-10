@@ -24,6 +24,8 @@ firms:
     - VIIRS_SNPP_NRT
     - VIIRS_NOAA20_NRT
     - MODIS_NRT
+    - HIMAWARI_NRT
+    - INSAT_GEO
   default_days: 7
   max_retries: 3
   retry_delay_seconds: 5
@@ -32,6 +34,12 @@ firms:
 sensor_buffers:
   VIIRS: 375
   MODIS: 1000
+  LANDSAT: 30
+  HIMAWARI: 2000
+  INSAT: 2000
+  METEOSAT: 2000
+  GOES: 2000
+  GEO: 2000
   default: 500
 
 # ── DBSCAN Clustering ────────────────────────────────────────────

@@ -28,6 +28,7 @@ from src.visualization.report import (
     chart_frp_timeseries, chart_thermal_stability_scatter, chart_hazard_score,
     top_hotspots_table, escalation_alerts_table, CLASS_COLORS,
     chart_thermosense_baseline_vs_current, chart_event_evolution_lifecycle, chart_thermosense_risk_gauge,
+    chart_geostationary_rapid_cadence,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s | %(name)s | %(message)s")
@@ -445,12 +446,17 @@ with st.sidebar:
     src_viirs_noaa = st.checkbox("NASA FIRMS VIIRS (NOAA-20/21) · 375m", value=True)
     src_modis      = st.checkbox("NASA FIRMS MODIS (Terra/Aqua) · 1km", value=True)
     src_landsat    = st.checkbox("NASA FIRMS Landsat Active Fire · 30m", value=True)
+    src_geo        = st.checkbox("🛰️ Geostationary GEO (Himawari/INSAT) · 10-min", value=True,
+                                 help="Geostationary continuous observation at 10-minute rapid cadence (2km pixel footprint)")
 
     sources = []
     if src_viirs_snpp: sources.append("VIIRS_SNPP_NRT")
     if src_viirs_noaa: sources.append("VIIRS_NOAA20_NRT")
     if src_modis:      sources.append("MODIS_NRT")
     if src_landsat:    sources.append("LANDSAT_NRT")
+    if src_geo:
+        sources.append("HIMAWARI_NRT")
+        sources.append("INSAT_GEO")
     if not sources:    sources = ["VIIRS_SNPP_NRT"]
 
     st.markdown("""
@@ -569,6 +575,13 @@ class_col = "final_class" if "final_class" in fire_gdf.columns else "rule_class"
 
 # ── Header HUD Banner — ThermoSense-X ─────────────────────────────────────────
 curr_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+has_geo = bool((fire_gdf.get("orbit_type", pd.Series()) == "GEOSTATIONARY").any())
+geo_badge = (
+    '<div class="hud-badge-satellite" style="color:#00e5ff;border-color:rgba(0,229,255,0.4);background:rgba(0,229,255,0.12);">'
+    '🛰️ GEO RAPID TRACKING: ACTIVE (10-min)'
+    '</div>'
+    if has_geo else ''
+)
 
 st.markdown(f"""
 <div class="hud-banner">
@@ -587,6 +600,7 @@ st.markdown(f"""
       SYSTEM ONLINE · {curr_time}
     </div>
     <div class="hud-badge-satellite">🛰️ NASA FIRMS: {len(sources)} SENSORS</div>
+    {geo_badge}
     <div class="hud-badge-satellite" style="color:#38bdf8;border-color:rgba(56,189,248,0.3);background:rgba(56,189,248,0.1);">🗺️ OSM: {len(osm_gdf):,} SITES</div>
     <div class="hud-badge-satellite">REGION: {sel_region.upper()}</div>
   </div>
@@ -789,6 +803,21 @@ with tab_evolution:
 
     st.plotly_chart(chart_event_evolution_lifecycle(sel_fac, fire_gdf), use_container_width=True)
 
+    # ── Geostationary 10-Minute Rapid Cadence Tracking ────────────────────────
+    st.markdown("""
+    <div style="margin-top:14px;margin-bottom:8px;padding:10px 14px;background:rgba(0,229,255,0.06);border:1px solid rgba(0,229,255,0.25);border-radius:8px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <span style="font-size:13.5px;font-weight:700;color:#00e5ff;">🛰️ Geostationary High-Frequency Continuous Tracking (10-Minute Cadence)</span>
+        <span style="background:rgba(0,229,255,0.18);color:#00e5ff;font-size:10.5px;padding:2px 8px;border-radius:4px;font-weight:700;font-family:'JetBrains Mono',monospace;">HIMAWARI-9 / INSAT-3DR (GEO)</span>
+      </div>
+      <div style="font-size:11.5px;color:#cbd5e1;margin-top:4px;line-height:1.4;">
+        <b>Zero Orbital Delay:</b> Polar satellites (VIIRS 375m, MODIS 1km) pass every 3–6 hours. Geostationary satellites continuously monitor the same footprint 24/7, streaming thermal scans every <b>10 minutes</b> to track fire ignition, flare ramping, and fire spikes in real time.
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.plotly_chart(chart_geostationary_rapid_cadence(sel_fac, fire_gdf), use_container_width=True)
+
     # Multi-day evolution breakdown
     e_col1, e_col2 = st.columns(2)
     with e_col1:
@@ -969,6 +998,7 @@ with tab_data:
     display_cols = [c for c in [
         "osm_facility_name", class_col, "thermosense_status", "thermal_risk_score",
         "frp", "thermosense_baseline_frp", "thermal_deviation_pct",
+        "orbit_type", "cadence", "acq_time", "sensor_footprint",
         "thermal_stability_score", "latitude", "longitude", "acq_date", "satellite",
     ] if c in filtered.columns]
 

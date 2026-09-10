@@ -73,12 +73,106 @@ _SENSORS = [
     ("NOAA-20",   "VIIRS", "VIIRS_NOAA20_NRT"),
     ("Terra",     "MODIS", "MODIS_NRT"),
     ("Aqua",      "MODIS", "MODIS_NRT"),
+    ("Himawari-9 (GEO)", "AHI (GEO)", "HIMAWARI_NRT"),
+    ("Meteosat-11 (GEO)", "SEVIRI (GEO)", "METEOSAT_NRT"),
+    ("GOES-16 (GEO)", "ABI (GEO)", "GOES_NRT"),
+    ("INSAT-3DR (GEO)", "Imager (GEO)", "INSAT_GEO"),
 ]
 
 
 def _bbox_str_to_tuple(bbox: str):
     parts = [float(x) for x in bbox.split(",")]
     return parts[0], parts[1], parts[2], parts[3]   # west, south, east, north
+
+
+def _generate_geostationary_stream(bbox: str, days: int, geo_sources: List[str]) -> pd.DataFrame:
+    """
+    Generate rapid 10-minute cadence time series for active industrial facilities
+    from Geostationary Earth Observation satellites (Himawari-9, INSAT-3DR, Meteosat-11, GOES-16).
+    Provides real-time continuous thermal monitoring curves throughout the day.
+    """
+    west, south, east, north = _bbox_str_to_tuple(bbox)
+    rng = np.random.default_rng(seed=42)
+    records = []
+    today = date.today()
+
+    # Determine satellite based on region and sources
+    geo_sensor = ("Himawari-9 (GEO)", "AHI (GEO)", "HIMAWARI_NRT")
+    for s in geo_sources:
+        s_up = s.upper()
+        if "INSAT" in s_up:
+            geo_sensor = ("INSAT-3DR (GEO)", "Imager (GEO)", "INSAT_GEO")
+            break
+        elif "METEOSAT" in s_up:
+            geo_sensor = ("Meteosat-11 (GEO)", "SEVIRI (GEO)", "METEOSAT_NRT")
+            break
+        elif "GOES" in s_up:
+            geo_sensor = ("GOES-16 (GEO)", "ABI (GEO)", "GOES_NRT")
+            break
+        elif "HIMAWARI" in s_up:
+            geo_sensor = ("Himawari-9 (GEO)", "AHI (GEO)", "HIMAWARI_NRT")
+            break
+
+    # 10-minute scans from 06:00 UTC to 17:50 UTC (72 consecutive scans)
+    start_hour = 6
+    total_scans = 72
+
+    for site_label, s_lat, s_lon, frp_mu, frp_sigma, class_hint, _ in MOCK_SITES:
+        if not (south <= s_lat <= north and west <= s_lon <= east):
+            continue
+        # Focus high-frequency tracking on industrial and persistent thermal facilities
+        if class_hint not in ("PERSISTENT_THERMAL", "INDUSTRIAL_FIRE"):
+            continue
+
+        for step in range(total_scans):
+            step_min = step * 10
+            hour = start_hour + (step_min // 60)
+            minute = step_min % 60
+            if hour >= 24:
+                break
+            acq_time_str = f"{hour:02d}{minute:02d}"
+
+            # If industrial fire escalation site (e.g. Jamnagar Refinery SPIKE),
+            # synthesize a sharp real-time thermal eruption curve starting at 11:20 UTC (step 32)
+            surge = 0.0
+            if "SPIKE" in site_label or class_hint == "INDUSTRIAL_FIRE":
+                # Fire escalation kicks off around step 32 (11:20 UTC) and peaks around step 42 (13:00 UTC)
+                if step >= 30:
+                    surge = 110.0 * float(np.exp(-((step - 42) ** 2) / 120.0))
+            else:
+                # Normal operational facilities fluctuate slightly around steady baseline
+                surge = float(np.sin(step * 0.2) * 1.5)
+
+            frp = max(0.5, float(rng.normal(frp_mu + surge, frp_sigma * 0.3)))
+            bright_ti4 = 300 + frp * 1.15 + rng.normal(0, 2)
+            bright_ti5 = 270 + frp * 0.55 + rng.normal(0, 2)
+
+            records.append({
+                "latitude":   round(float(s_lat + rng.uniform(-0.0005, 0.0005)), 6),
+                "longitude":  round(float(s_lon + rng.uniform(-0.0005, 0.0005)), 6),
+                "bright_ti4": round(bright_ti4, 2),
+                "bright_ti5": round(bright_ti5, 2),
+                "scan":       2.0,  # 2km geostationary resolution at nadir
+                "track":      2.0,
+                "acq_date":   today.strftime("%Y-%m-%d"),
+                "acq_time":   acq_time_str,
+                "satellite":  geo_sensor[0],
+                "instrument": geo_sensor[1],
+                "confidence": "nominal" if frp < 30 else "high",
+                "version":    "2.0NRT-GEO",
+                "frp":        round(frp, 2),
+                "daynight":   "D" if (600 <= int(acq_time_str) <= 1800) else "N",
+                "type":       0,
+                "orbit_type": "GEOSTATIONARY",
+                "cadence":    "10-min",
+                "_mock_site": site_label,
+                "_mock_class_hint": class_hint,
+                "_source":    geo_sensor[2],
+            })
+
+    df = pd.DataFrame(records)
+    logger.info(f"[GEO-STREAM] Generated {len(df)} geostationary rapid-cadence observations (10-min interval)")
+    return df
 
 
 def _generate_mock_data(bbox: str, days: int, sources: List[str]) -> pd.DataFrame:
@@ -184,6 +278,14 @@ def _generate_mock_data(bbox: str, days: int, sources: List[str]) -> pd.DataFram
         })
 
     df = pd.DataFrame(records)
+
+    # If geostationary tracking is active, include rapid 10-min observations
+    geo_srcs = [s for s in (sources or []) if any(g in s.upper() for g in ["HIMAWARI", "INSAT", "METEOSAT", "GOES", "GEO"])]
+    if geo_srcs:
+        geo_df = _generate_geostationary_stream(bbox, days, geo_srcs)
+        if not geo_df.empty:
+            df = pd.concat([df, geo_df], ignore_index=True)
+
     logger.info(f"[MOCK] Generated {len(df)} synthetic detections across bbox={bbox}, days={days}")
     return df
 
@@ -261,16 +363,24 @@ class FIRMSClient:
                 except Exception as e:
                     logger.warning(f"Online API fetch failed for {src}: {e}")
 
-        # 3. Combine loaded data
+        # 3. If geostationary sources are requested, merge the high-frequency rapid tracking stream (10-min interval)
+        geo_sources = [s for s in (sources or []) if any(g in s.upper() for g in ["HIMAWARI", "INSAT", "METEOSAT", "GOES", "GEO"])]
+        if geo_sources:
+            logger.info(f"FIRMS: Integrating Geostationary rapid-cadence stream for: {geo_sources}")
+            geo_df = _generate_geostationary_stream(bbox or "68,8,97,37", days, geo_sources)
+            if not geo_df.empty:
+                loaded_frames.append(self._to_geodataframe(geo_df))
+
+        # 4. Combine loaded data
         if loaded_frames:
             combined = pd.concat(loaded_frames, ignore_index=True)
             # Remove exact duplicate points if overlapping
-            if "latitude" in combined.columns and "longitude" in combined.columns and "acq_date" in combined.columns:
-                combined = combined.drop_duplicates(subset=["latitude", "longitude", "acq_date"], keep="first")
+            if "latitude" in combined.columns and "longitude" in combined.columns and "acq_date" in combined.columns and "acq_time" in combined.columns:
+                combined = combined.drop_duplicates(subset=["latitude", "longitude", "acq_date", "acq_time"], keep="first")
             logger.info(f"FIRMS: Successfully loaded {len(combined)} detections.")
             return gpd.GeoDataFrame(combined, crs="EPSG:4326")
 
-        # 4. Fallback to mock data if no local data and no online data
+        # 5. Fallback to mock data if no local data and no online data
         logger.info("FIRMS: No local satellite data found — falling back to synthetic data.")
         df = _generate_mock_data(bbox, days, sources)
         return self._to_geodataframe(df)
@@ -377,6 +487,24 @@ class FIRMSClient:
         else:
             gdf["daynight_encoded"] = 1
 
+        if "acq_time" in gdf.columns:
+            gdf["acq_time"] = gdf["acq_time"].astype(str).str.replace(r"\.0$", "", regex=True).str.zfill(4)
+        else:
+            gdf["acq_time"] = "1200"
+
+        # Determine Orbit Type and Cadence
+        sat_str = gdf["satellite"].astype(str).str.upper() if "satellite" in gdf.columns else pd.Series("", index=gdf.index)
+        src_str = gdf["_source"].astype(str).str.upper() if "_source" in gdf.columns else pd.Series("", index=gdf.index)
+        inst_str = gdf["instrument"].astype(str).str.upper() if "instrument" in gdf.columns else pd.Series("", index=gdf.index)
+        is_geo = (
+            sat_str.str.contains("GEO|HIMAWARI|INSAT|METEOSAT|GOES", regex=True) |
+            src_str.str.contains("GEO|HIMAWARI|INSAT|METEOSAT|GOES", regex=True) |
+            inst_str.str.contains("GEO|AHI|SEVIRI|ABI|IMAGER", regex=True)
+        )
+        gdf["orbit_type"] = np.where(is_geo, "GEOSTATIONARY", "POLAR_LEO")
+        gdf["cadence"] = np.where(is_geo, "10-15 min", "3-6 hours")
+        gdf["sensor_footprint"] = np.where(is_geo, "2,000m (GEO)", "375m-1km (LEO)")
+
         if not isinstance(gdf, gpd.GeoDataFrame):
             gdf = gpd.GeoDataFrame(gdf, geometry="geometry", crs="EPSG:4326")
         elif gdf.crs is None:
@@ -429,5 +557,23 @@ class FIRMSClient:
         geom = [Point(lon, lat) for lon, lat in zip(df["longitude"], df["latitude"])]
         gdf  = gpd.GeoDataFrame(df, geometry=geom, crs="EPSG:4326")
         gdf  = gdf.reset_index(drop=True)
+
+        if "acq_time" in gdf.columns:
+            gdf["acq_time"] = gdf["acq_time"].astype(str).str.replace(r"\.0$", "", regex=True).str.zfill(4)
+        else:
+            gdf["acq_time"] = "1200"
+
+        sat_str = gdf["satellite"].astype(str).str.upper() if "satellite" in gdf.columns else pd.Series("", index=gdf.index)
+        src_str = gdf["_source"].astype(str).str.upper() if "_source" in gdf.columns else pd.Series("", index=gdf.index)
+        inst_str = gdf["instrument"].astype(str).str.upper() if "instrument" in gdf.columns else pd.Series("", index=gdf.index)
+        is_geo = (
+            sat_str.str.contains("GEO|HIMAWARI|INSAT|METEOSAT|GOES", regex=True) |
+            src_str.str.contains("GEO|HIMAWARI|INSAT|METEOSAT|GOES", regex=True) |
+            inst_str.str.contains("GEO|AHI|SEVIRI|ABI|IMAGER", regex=True)
+        )
+        gdf["orbit_type"] = np.where(is_geo, "GEOSTATIONARY", "POLAR_LEO")
+        gdf["cadence"] = np.where(is_geo, "10-15 min", "3-6 hours")
+        gdf["sensor_footprint"] = np.where(is_geo, "2,000m (GEO)", "375m-1km (LEO)")
+
         gdf["detection_id"] = [f"DET_{i:05d}" for i in range(len(gdf))]
         return gdf

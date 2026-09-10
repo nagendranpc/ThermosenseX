@@ -16,8 +16,14 @@ logger = logging.getLogger(__name__)
 
 # Sensor → ground sample distance (meters)
 SENSOR_BUFFER_MAP = {
-    "VIIRS":  375,   # I-Band, 375 m
-    "MODIS": 1000,   # 1-km active fire product
+    "VIIRS":     375,   # I-Band, 375 m
+    "MODIS":    1000,   # 1-km active fire product
+    "LANDSAT":    30,   # 30-m active fire product
+    "HIMAWARI": 2000,   # 2-km geostationary rapid tracking
+    "METEOSAT": 2000,   # 2-km geostationary rapid tracking
+    "GOES":     2000,   # 2-km geostationary rapid tracking
+    "INSAT":    2000,   # 2-km geostationary rapid tracking
+    "GEO":      2000,   # 2-km generic geostationary footprint
 }
 DEFAULT_BUFFER = 500  # fallback
 
