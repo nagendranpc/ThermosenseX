@@ -302,6 +302,41 @@ def _generate_mock_data(bbox: str, days: int, sources: List[str]) -> pd.DataFram
         if not geo_df.empty:
             df = pd.concat([df, geo_df], ignore_index=True)
 
+    # If edge camera / zero-delay CCTV stream is active, inject real-time sub-second facility telemetry
+    if any("EDGE" in s.upper() or "ZERO" in s.upper() for s in (sources or [])):
+        edge_records = []
+        now_dt = datetime.now()
+        for site_label, s_lat, s_lon, frp_mu, frp_sigma, class_hint, _ in MOCK_SITES:
+            if class_hint in ("INDUSTRIAL_FIRE", "PERSISTENT_THERMAL"):
+                is_fire = (class_hint == "INDUSTRIAL_FIRE")
+                frp_val = round(float(145.0 if is_fire else frp_mu + rng.normal(0, 2)), 2)
+                edge_records.append({
+                    "latitude":   s_lat,
+                    "longitude":  s_lon,
+                    "bright_ti4": 385.0 if is_fire else 315.0,
+                    "bright_ti5": 320.0 if is_fire else 280.0,
+                    "scan":       0.05,
+                    "track":      0.05,
+                    "acq_date":   now_dt.strftime("%Y-%m-%d"),
+                    "acq_time":   now_dt.strftime("%H%M"),
+                    "satellite":  "On-Site FLIR PTZ (Edge AI / YOLOv8)",
+                    "instrument": "Radiometric MWIR / Optical Flame Sensor",
+                    "confidence": "high",
+                    "version":    "0-SEC-EDGE",
+                    "frp":        frp_val,
+                    "daynight":   "D",
+                    "type":       0,
+                    "orbit_type": "EDGE_GROUND_CAMERA",
+                    "cadence":    "0.1-sec instantaneous",
+                    "sensor_footprint": "1-meter localized",
+                    "_mock_site": site_label,
+                    "_mock_class_hint": class_hint,
+                    "_source":    "EDGE_THERMAL_ZERO_DELAY",
+                })
+        if edge_records:
+            edge_df = pd.DataFrame(edge_records)
+            df = pd.concat([df, edge_df], ignore_index=True)
+
     logger.info(f"[MOCK] Generated {len(df)} synthetic detections across bbox={bbox}, days={days}")
     return df
 

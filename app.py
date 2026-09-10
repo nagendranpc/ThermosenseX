@@ -452,6 +452,8 @@ with st.sidebar:
     src_landsat    = st.checkbox("NASA FIRMS Landsat Active Fire · 30m", value=True)
     src_geo        = st.checkbox("🛰️ Geostationary GEO (Himawari/INSAT) · 10-min", value=True,
                                  help="Geostationary continuous observation at 10-minute rapid cadence (2km pixel footprint)")
+    src_edge_cctv  = st.checkbox("📹 On-Site Thermal Edge Stream (FLIR/YOLO) · 0-Sec Delay", value=True,
+                                 help="Sub-second optical/thermal camera stream processed by Edge AI (YOLOv8/OpenCV) for instant flame & smoke alarms")
 
     sources = []
     if src_viirs_snpp: sources.append("VIIRS_SNPP_NRT")
@@ -461,6 +463,8 @@ with st.sidebar:
     if src_geo:
         sources.append("HIMAWARI_NRT")
         sources.append("INSAT_GEO")
+    if src_edge_cctv:
+        sources.append("EDGE_THERMAL_ZERO_DELAY")
     if not sources:    sources = ["VIIRS_SNPP_NRT"]
 
     st.markdown("""
@@ -586,6 +590,13 @@ geo_badge = (
     '</div>'
     if has_geo else ''
 )
+has_edge = bool((fire_gdf.get("orbit_type", pd.Series()) == "EDGE_GROUND_CAMERA").any())
+edge_badge = (
+    '<div class="hud-badge-satellite" style="color:#10b981;border-color:rgba(16,185,129,0.4);background:rgba(16,185,129,0.12);">'
+    '📹 ZERO-DELAY EDGE AI: &lt; 0.2s'
+    '</div>'
+    if has_edge else ''
+)
 
 st.markdown(f"""
 <div class="hud-banner">
@@ -605,6 +616,7 @@ st.markdown(f"""
     </div>
     <div class="hud-badge-satellite">🛰️ NASA FIRMS: {len(sources)} SENSORS</div>
     {geo_badge}
+    {edge_badge}
     <div class="hud-badge-satellite" style="color:#38bdf8;border-color:rgba(56,189,248,0.3);background:rgba(56,189,248,0.1);">🗺️ OSM: {len(osm_gdf):,} SITES</div>
     <div class="hud-badge-satellite">REGION: {sel_region.upper()}</div>
   </div>

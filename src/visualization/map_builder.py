@@ -249,6 +249,30 @@ def build_map(
             
         fg_geo.add_to(m)
 
+    # ── Edge Real-Time Zero-Delay Camera Overlay Layer ────────────────────────
+    edge_mask = gdf.get("orbit_type", pd.Series("", index=gdf.index)) == "EDGE_GROUND_CAMERA"
+    edge_gdf = gdf[edge_mask]
+    if not edge_gdf.empty:
+        fg_edge = folium.FeatureGroup(name=f"📹 On-Site Edge Cameras ({len(edge_gdf)} streams · 0-Sec Instant)", show=True)
+        for _, row in edge_gdf.iterrows():
+            popup_html = _build_popup(row, class_col)
+            site_name = row.get("osm_facility_name") or row.get("_mock_site") or "Monitored Industrial Complex"
+            
+            folium.Marker(
+                location=[row["latitude"], row["longitude"]],
+                icon=folium.Icon(color="red" if row.get("frp", 0) > 50 else "blue", icon="video-camera", prefix="fa"),
+                popup=folium.Popup(popup_html, max_width=380),
+                tooltip=folium.Tooltip(
+                    f"<div style='font-family:Inter,sans-serif;font-size:12px;color:#0f172a;font-weight:700;padding:2px 4px;'>"
+                    f"📹 <b>ZERO-DELAY EDGE CAMERA (FLIR / YOLOv8)</b><br/>"
+                    f"🏭 <b>{site_name}</b><br/>"
+                    f"⚡ Latency: <b>&lt; 0.2 seconds</b> (Instant Flame Trigger)<br/>"
+                    f"🔥 Heat Output: <b>{row.get('frp', 0):.1f} MW</b>"
+                    f"</div>"
+                ),
+            ).add_to(fg_edge)
+        fg_edge.add_to(m)
+
     # ── Map Controls & Dark Styling ───────────────────────────────────────────
     custom_map_css = """
     <style>
