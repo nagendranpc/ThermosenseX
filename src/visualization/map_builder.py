@@ -149,7 +149,12 @@ def build_map(
         fg = folium.FeatureGroup(name=f"{_cls_emoji(cls)} {cls} ({len(cls_gdf)})", show=show_layer)
 
         cluster = MarkerCluster(
-            options={"maxClusterRadius": 25, "disableClusteringAtZoom": 7, "spiderfyOnMaxZoom": True}
+            options={
+                "maxClusterRadius": 45,
+                "disableClusteringAtZoom": 16,
+                "spiderfyOnMaxZoom": False,
+                "zoomToBoundsOnClick": True,
+            }
         )
 
         # For UNKNOWN background ambient points, sample top 150 by FRP to keep Leaflet canvas lightweight & instant
