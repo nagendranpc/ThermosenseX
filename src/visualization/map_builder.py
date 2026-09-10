@@ -152,8 +152,12 @@ def build_map(
             options={"maxClusterRadius": 25, "disableClusteringAtZoom": 7, "spiderfyOnMaxZoom": True}
         )
 
-        # Plot all thermal detections in this class
-        plot_gdf = cls_gdf
+        # For UNKNOWN background ambient points, sample top 150 by FRP to keep Leaflet canvas lightweight & instant
+        # All points are still fully represented in the FRP Heatmap layer below
+        if cls == "UNKNOWN" and len(cls_gdf) > 150:
+            plot_gdf = cls_gdf.sort_values("frp", ascending=False).head(150)
+        else:
+            plot_gdf = cls_gdf.sort_values("frp", ascending=False).head(400) if len(cls_gdf) > 400 else cls_gdf
 
         for _, row in plot_gdf.iterrows():
             popup_html = _build_popup(row, class_col)
@@ -198,7 +202,9 @@ def build_map(
     geo_gdf = gdf[geo_mask]
     if not geo_gdf.empty:
         fg_geo = folium.FeatureGroup(name=f"🛰️ Geostationary Stream ({len(geo_gdf)} scans · 10m)", show=True)
-        for _, row in geo_gdf.iterrows():
+        # Display peak and most recent scans per facility (up to 120 markers)
+        geo_plot = geo_gdf.sort_values("frp", ascending=False).head(120) if len(geo_gdf) > 120 else geo_gdf
+        for _, row in geo_plot.iterrows():
             popup_html = _build_popup(row, class_col)
             folium.CircleMarker(
                 location=[row["latitude"], row["longitude"]],
@@ -243,6 +249,18 @@ def build_map(
     .leaflet-control-layers label:hover {
         color: #38bdf8 !important;
     }
+    .leaflet-popup-content-wrapper {
+        background: rgba(15, 23, 42, 0.96) !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        border-radius: 8px !important;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7) !important;
+    }
+    .pop-card { font-family: 'Inter', Segoe UI, Arial, sans-serif; width: 300px; color: #f8fafc; }
+    .pop-hdr { padding: 6px 10px; border-radius: 6px 6px 0 0; margin: -4px -4px 6px -4px; font-weight: 700; font-size: 12.5px; color: #fff; }
+    .pop-table { width: 100%; font-size: 11px; border-collapse: collapse; }
+    .pop-table td { padding: 2px 3px; }
+    .pop-table td:first-child { color: #94a3b8; width: 38%; }
+    .pop-table td:last-child { color: #f8fafc; font-weight: 600; }
     </style>
     """
     m.get_root().html.add_child(folium.Element(custom_map_css))
@@ -283,45 +301,43 @@ def _build_popup(row: pd.Series, class_col: str) -> str:
     drift       = row.get("centroid_drift_km", 0.0)
     acq_date    = str(row.get("acq_date", ""))[:10]
     acq_time    = str(row.get("acq_time", ""))
-    time_fmt    = f"{acq_time[:2]}:{acq_time[2:4]} UTC" if len(acq_time) >= 4 else "—"
+    time_fmt    = f"{acq_time[:2]}:{acq_time[2:4]} UTC" if len(acq_time) >= 4 else ""
     satellite   = row.get("satellite", "—")
     orbit_type  = row.get("orbit_type", "POLAR_LEO")
     cadence     = row.get("cadence", "3-6 hours")
     footprint   = row.get("sensor_footprint", "375m-1km")
-    daynight    = "☀️ Daytime" if row.get("daynight") == "D" else "🌙 Nighttime"
+    daynight    = "☀️ Day" if row.get("daynight") == "D" else "🌙 Night"
 
     esc_badge = (
-        f'<span style="background:#FF2222;color:white;padding:2px 6px;border-radius:4px;font-size:11px;">⚠️ ESCALATED</span>'
+        f'<span style="background:#FF2222;color:white;padding:1px 5px;border-radius:3px;font-size:10px;">⚠️ ESCALATED</span>'
         if escalated else ""
     )
-    opt_badge = ""
-    if row.get("optical_verified"):
-        opt_badge = '<span style="background:#00AA44;color:white;padding:2px 6px;border-radius:4px;font-size:11px;">✅ Optically Verified</span>'
-
+    opt_badge = (
+        '<span style="background:#00AA44;color:white;padding:1px 5px;border-radius:3px;font-size:10px;">✅ Opt Verified</span>'
+        if row.get("optical_verified") else ""
+    )
     geo_badge = (
-        f'<span style="background:rgba(0,229,255,0.2);color:#00E5FF;border:1px solid #00E5FF;padding:2px 6px;border-radius:4px;font-size:10.5px;font-weight:700;">🛰️ GEO 10-MIN RAPID STREAM</span>'
+        f'<span style="background:rgba(0,229,255,0.2);color:#00E5FF;border:1px solid #00E5FF;padding:1px 5px;border-radius:3px;font-size:10px;font-weight:700;">🛰️ GEO 10-MIN</span>'
         if orbit_type == "GEOSTATIONARY" else ""
     )
 
     return f"""
-    <div style="font-family:Segoe UI,Arial,sans-serif;width:340px;padding:4px;">
-      <div style="background:{style['color']};color:white;padding:8px 12px;border-radius:6px 6px 0 0;margin:-4px -4px 8px -4px;">
-        <b style="font-size:14px;">{_cls_emoji(cls)} {cls.replace('_',' ')}</b>
-        <span style="float:right;font-size:12px;">Conf: {confidence:.0%}</span>
+    <div class="pop-card">
+      <div class="pop-hdr" style="background:{style['color']};">
+        {_cls_emoji(cls)} {cls.replace('_',' ')}
+        <span style="float:right;font-size:10.5px;">Conf: {confidence:.0%}</span>
       </div>
       <div style="margin-bottom:4px;display:flex;gap:4px;flex-wrap:wrap;">{esc_badge} {opt_badge} {geo_badge}</div>
-      <table style="width:100%;font-size:12px;border-collapse:collapse;">
-        <tr><td style="color:#aaa;padding:2px 4px;">📅 Date &amp; Time</td> <td style="padding:2px 4px;"><b>{acq_date} {time_fmt}</b></td></tr>
-        <tr><td style="color:#aaa;padding:2px 4px;">🔥 FRP</td>       <td style="padding:2px 4px;"><b>{frp:.1f} MW</b></td></tr>
-        <tr><td style="color:#aaa;padding:2px 4px;">🛰 Satellite</td>  <td style="padding:2px 4px;">{satellite} — {daynight}</td></tr>
-        <tr><td style="color:#aaa;padding:2px 4px;">🌐 Orbit &amp; Cadence</td> <td style="padding:2px 4px;"><b style="color:{'#00E5FF' if orbit_type == 'GEOSTATIONARY' else '#ffffff'};">{orbit_type} ({cadence})</b></td></tr>
-        <tr><td style="color:#aaa;padding:2px 4px;">📏 Footprint</td>  <td style="padding:2px 4px;">{footprint}</td></tr>
-        <tr><td style="color:#aaa;padding:2px 4px;">🏭 Facility</td>   <td style="padding:2px 4px;">{facility}</td></tr>
-        <tr><td style="color:#aaa;padding:2px 4px;">🏷 OSM Type</td>   <td style="padding:2px 4px;">{osm_type}</td></tr>
-        <tr><td style="color:#aaa;padding:2px 4px;">⚠️ Hazard Wt</td>  <td style="padding:2px 4px;">{hazard_wt:.1f}</td></tr>
-        <tr><td style="color:#aaa;padding:2px 4px;">🌡 Stability</td>  <td style="padding:2px 4px;">{stability:.2f}</td></tr>
-        <tr><td style="color:#aaa;padding:2px 4px;">📍 Drift</td>      <td style="padding:2px 4px;">{drift:.3f} km/day</td></tr>
-        {"<tr><td colspan='2' style='color:#FF4444;padding:4px;font-size:11px;'>⚡ " + esc_reason + "</td></tr>" if escalated else ""}
+      <table class="pop-table">
+        <tr><td>📅 Time</td><td>{acq_date} {time_fmt}</td></tr>
+        <tr><td>🔥 FRP</td><td>{frp:.1f} MW</td></tr>
+        <tr><td>🛰 Sat</td><td>{satellite} ({daynight})</td></tr>
+        <tr><td>🌐 Orbit</td><td style="color:{'#00E5FF' if orbit_type == 'GEOSTATIONARY' else '#ffffff'};">{orbit_type} ({cadence})</td></tr>
+        <tr><td>📏 Footprint</td><td>{footprint}</td></tr>
+        <tr><td>🏭 Facility</td><td>{facility}</td></tr>
+        <tr><td>⚠️ Hazard</td><td>{hazard_wt:.1f} ({osm_type})</td></tr>
+        <tr><td>🌡 Stability</td><td>{stability:.2f} · {drift:.3f} km/d</td></tr>
+        {"<tr><td colspan='2' style='color:#FF4444;'>⚡ " + esc_reason + "</td></tr>" if escalated else ""}
       </table>
     </div>
     """

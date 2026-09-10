@@ -23,6 +23,10 @@ sys.path.insert(0, str(ROOT))
 
 from src.pipeline import FireDetectionPipeline, load_config
 from src.visualization.map_builder import build_map
+try:
+    from streamlit_folium import st_folium
+except ImportError:
+    st_folium = None
 from src.visualization.report import (
     generate_summary_stats, chart_class_distribution, chart_frp_distribution,
     chart_frp_timeseries, chart_thermal_stability_scatter, chart_hazard_score,
@@ -682,9 +686,11 @@ with tab_map:
         with st.spinner("Rendering geospatial thermal canvas …"):
             map_data = fire_gdf
             fmap = build_map(map_data, osm_gdf, alerts)
-            map_html = fmap._repr_html_()
-        
-        st.components.v1.html(map_html, height=620, scrolling=False)
+            if st_folium is not None:
+                st_folium(fmap, height=620, use_container_width=True, returned_objects=[])
+            else:
+                map_html = fmap._repr_html_()
+                st.components.v1.html(map_html, height=620, scrolling=False)
 
     with hud_col:
         st.markdown("""
