@@ -33,18 +33,34 @@ FIRMS_BASE = "https://firms.modaps.eosdis.nasa.gov/api/area/csv"
 # ── Mock site definitions ─────────────────────────────────────────────────────
 #  Each entry: (label, lat, lon, frp_mu, frp_sigma, class_hint, n_days_active)
 MOCK_SITES = [
-    # ── Persistent thermal sources ──────────────────────────────────────────
+    # ── Persistent thermal sources & Major Facilities across all regions of India ──
+    # West
     ("Jamnagar Refinery",       22.470, 70.060, 18, 3,   "PERSISTENT_THERMAL", 7),
+    ("Ankleshwar Chem Zone",    21.630, 73.002, 22, 4,   "PERSISTENT_THERMAL", 7),
+    ("GAIL Vaghodia Flare",     22.314, 73.186, 14, 3,   "PERSISTENT_THERMAL", 7),
+    ("Mumbai BPCL Refinery",    19.014, 72.898, 25, 4,   "PERSISTENT_THERMAL", 7),
+    # North
+    ("Panipat Refinery Fire",   29.388, 76.970, 75, 18,  "INDUSTRIAL_FIRE",    1),
+    ("Mathura Refinery",        27.492, 77.673, 20, 4,   "PERSISTENT_THERMAL", 7),
+    # Central
+    ("Singrauli Power Plant",   24.199, 82.685, 28, 4,   "PERSISTENT_THERMAL", 7),
+    ("Bhilai Steel Plant",      21.209, 81.378, 35, 6,   "PERSISTENT_THERMAL", 7),
+    # East & Northeast
     ("Jharia Coalfield",        23.752, 86.415, 10, 2,   "PERSISTENT_THERMAL", 7),
     ("Tata Steel Jamshedpur",   22.802, 86.185, 30, 5,   "PERSISTENT_THERMAL", 7),
-    ("Ankleshwar Chem Zone",    21.630, 73.002, 22, 4,   "PERSISTENT_THERMAL", 7),
-    ("Singrauli Power Plant",   24.199, 82.685, 28, 4,   "PERSISTENT_THERMAL", 7),
-    ("GAIL Vaghodia Flare",     22.314, 73.186, 14, 3,   "PERSISTENT_THERMAL", 7),
-
-    # ── Industrial fire (escalation + fresh) ──────────────────────────────
-    ("Jamnagar Refinery SPIKE", 22.473, 70.063, 120, 15, "INDUSTRIAL_FIRE",    1),  # escalation event
     ("Numaligarh Refinery",     26.664, 93.697, 90, 20,  "INDUSTRIAL_FIRE",    2),
-    ("Panipat Refinery Fire",   29.388, 76.970, 75, 18,  "INDUSTRIAL_FIRE",    1),
+    ("Paradip IOCL Refinery",   20.264, 86.667, 26, 5,   "PERSISTENT_THERMAL", 7),
+    ("Haldia Petrochem Complex",22.030, 88.080, 22, 4,   "PERSISTENT_THERMAL", 7),
+    # South
+    ("Manali Industrial CPCL",  13.167, 80.262, 28, 5,   "PERSISTENT_THERMAL", 7),
+    ("Kochi BPCL Refinery",      9.969, 76.357, 24, 4,   "PERSISTENT_THERMAL", 7),
+    ("Mangalore MRPL Refinery", 12.988, 74.834, 25, 4,   "PERSISTENT_THERMAL", 7),
+    ("Vizag HPCL Refinery",     17.692, 83.255, 32, 6,   "PERSISTENT_THERMAL", 7),
+    ("Ramagundam NTPC Plant",   18.756, 79.513, 27, 4,   "PERSISTENT_THERMAL", 7),
+    ("Neyveli Lignite Complex", 11.538, 79.489, 16, 3,   "PERSISTENT_THERMAL", 7),
+
+    # ── Industrial fire (escalation event) ──────────────────────────────────
+    ("Jamnagar Refinery SPIKE", 22.473, 70.063, 120, 15, "INDUSTRIAL_FIRE",    1),
 
     # ── Wildfires ──────────────────────────────────────────────────────────
     ("Uttarakhand Wildfire A",  30.20,  79.50,  45, 12,  "WILDFIRE",           4),

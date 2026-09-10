@@ -64,16 +64,31 @@ HAZARD_TIERS: List[Dict] = [
 # ── Mock OSM polygons for offline dev ─────────────────────────────────────────
 _MOCK_OSM_SITES = [
     # (name, center_lat, center_lon, radius_deg, tier, weight, osm_type)
+    # ── West India ──
     ("Jamnagar Refinery",       22.470, 70.060, 0.06,  1, 1.0, "industrial=refinery"),
+    ("Ankleshwar GIDC",         21.630, 73.002, 0.04,  1, 1.0, "industrial=chemical_works"),
+    ("GAIL Vaghodia",           22.314, 73.186, 0.03,  1, 1.0, "man_made=petroleum_well"),
+    ("Mumbai BPCL Refinery",    19.014, 72.898, 0.04,  1, 1.0, "industrial=refinery"),
+    # ── North India ──
+    ("Panipat Refinery",        29.388, 76.970, 0.04,  1, 1.0, "industrial=refinery"),
+    ("Mathura Refinery",        27.492, 77.673, 0.04,  1, 1.0, "industrial=refinery"),
+    ("Rajasthan Solar Farm",    26.500, 72.500, 0.07,  4, 0.1, "power=generator;generator:source=solar"),
+    # ── East & Northeast India ──
     ("Jharia Coalfield",        23.752, 86.415, 0.05,  3, 0.4, "landuse=industrial"),
     ("Tata Steel Jamshedpur",   22.802, 86.185, 0.04,  2, 0.7, "industrial=steel"),
-    ("Ankleshwar GIDC",         21.630, 73.002, 0.04,  1, 1.0, "industrial=chemical_works"),
-    ("Singrauli Power",         24.199, 82.685, 0.05,  2, 0.7, "power=plant"),
-    ("GAIL Vaghodia",           22.314, 73.186, 0.03,  1, 1.0, "man_made=petroleum_well"),
     ("Numaligarh Refinery",     26.664, 93.697, 0.04,  1, 1.0, "industrial=refinery"),
-    ("Panipat Refinery",        29.388, 76.970, 0.04,  1, 1.0, "industrial=refinery"),
-    ("Rajasthan Solar Farm",    26.500, 72.500, 0.07,  4, 0.1, "power=generator;generator:source=solar"),
+    ("Paradip IOCL Refinery",   20.264, 86.667, 0.05,  1, 1.0, "industrial=refinery"),
+    ("Haldia Petrochem Complex",22.030, 88.080, 0.05,  1, 1.0, "industrial=chemical_works"),
+    # ── Central India ──
+    ("Singrauli Power",         24.199, 82.685, 0.05,  2, 0.7, "power=plant"),
     ("Bhilai Steel Plant",      21.209, 81.378, 0.05,  2, 0.7, "industrial=steel"),
+    # ── South India ──
+    ("Manali Industrial CPCL",  13.167, 80.262, 0.04,  1, 1.0, "industrial=refinery"),
+    ("Kochi BPCL Refinery",      9.969, 76.357, 0.04,  1, 1.0, "industrial=refinery"),
+    ("Mangalore MRPL Refinery", 12.988, 74.834, 0.04,  1, 1.0, "industrial=refinery"),
+    ("Vizag HPCL Refinery",     17.692, 83.255, 0.04,  1, 1.0, "industrial=refinery"),
+    ("Ramagundam NTPC Plant",   18.756, 79.513, 0.05,  2, 0.7, "power=plant"),
+    ("Neyveli Lignite Mines",   11.538, 79.489, 0.05,  3, 0.4, "landuse=quarry"),
 ]
 
 
