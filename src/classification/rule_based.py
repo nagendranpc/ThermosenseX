@@ -124,22 +124,23 @@ def classify_rule_based(
     daynight  = gdf["daynight"].astype(str) if "daynight" in gdf.columns else pd.Series("D", index=gdf.index)
     conf      = gdf["confidence"].astype(str).str.lower() if "confidence" in gdf.columns else pd.Series("nominal", index=gdf.index)
 
-    # 4. Agricultural Burn
-    m_agri = (~osm_ov) & (frp <= frp_agri_max) & (daynight == "D") & (conf.isin(["nominal", "high"]))
+    # 4. Agricultural Burn (strictly non-industrial daytime seasonal burns)
+    m_agri = (~osm_ov) & (frp <= frp_agri_max) & (daynight == "D") & (conf.isin(["nominal", "high"])) & (stability < 0.70)
     rule_class[m_agri] = CLASS_AGRICULTURAL_BURN
     rule_conf[m_agri]  = 0.80
 
-    # 3. Wildfire
-    m_wild = (~osm_ov) & (frp >= frp_wild_min)
+    # 3. Wildfire (requires moving/transient nature with low stability or spatial expansion, strictly non-industrial)
+    m_wild = (~osm_ov) & (frp >= frp_wild_min) & (stability < 0.70)
     rule_class[m_wild] = CLASS_WILDFIRE
     rule_conf[m_wild]  = 0.85
 
-    # 2. Persistent Thermal
-    m_pt = (osm_ov) & (stability >= 0.50) & (frp < frp_ind_min)
+    # 2. Persistent Thermal (stable recurring industrial thermal emissions or flare stacks)
+    # Triggered by: OSM overlap + high stability OR stationary thermal source (stability >= 0.70)
+    m_pt = ((osm_ov) | (stability >= 0.70)) & (frp < frp_ind_min)
     rule_class[m_pt] = CLASS_PERSISTENT_THERMAL
-    rule_conf[m_pt]  = 0.88
+    rule_conf[m_pt]  = 0.90
 
-    # 1. Industrial Fire
+    # 1. Industrial Fire (acute thermal eruption at an industrial facility or escalation alert)
     m_ind = (osm_ov) & ((escalated) | (frp >= frp_ind_min))
     rule_class[m_ind] = CLASS_INDUSTRIAL_FIRE
     rule_conf[m_ind]  = 0.95

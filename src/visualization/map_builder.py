@@ -143,7 +143,10 @@ def build_map(
     class_col = "final_class" if "final_class" in gdf.columns else "rule_class"
 
     for cls, style in CLASS_STYLE.items():
-        cls_gdf = gdf[gdf.get(class_col, pd.Series()) == cls] if not gdf.empty else gdf.iloc[0:0]
+        # Only plot polar LEO archive detections in the classification cluster layers
+        # Geostationary streams and Edge CCTV have their own dedicated high-resolution layers below
+        cls_mask = (gdf.get(class_col, pd.Series()) == cls) & (~gdf.get("orbit_type", pd.Series("")).isin(["GEOSTATIONARY", "EDGE_GROUND_CAMERA"]))
+        cls_gdf = gdf[cls_mask] if not gdf.empty else gdf.iloc[0:0]
         # Show all thermal detection layers by default so no thermal signatures are hidden
         show_layer = True
         fg = folium.FeatureGroup(name=f"{_cls_emoji(cls)} {cls} ({len(cls_gdf)})", show=show_layer)
