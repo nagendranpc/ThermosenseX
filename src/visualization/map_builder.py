@@ -201,23 +201,52 @@ def build_map(
     geo_mask = gdf.get("orbit_type", pd.Series("", index=gdf.index)) == "GEOSTATIONARY"
     geo_gdf = gdf[geo_mask]
     if not geo_gdf.empty:
-        fg_geo = folium.FeatureGroup(name=f"🛰️ Geostationary Stream ({len(geo_gdf)} scans · 10m)", show=True)
-        # Display peak and most recent scans per facility (up to 120 markers)
-        geo_plot = geo_gdf.sort_values("frp", ascending=False).head(120) if len(geo_gdf) > 120 else geo_gdf
-        for _, row in geo_plot.iterrows():
-            popup_html = _build_popup(row, class_col)
+        fg_geo = folium.FeatureGroup(name=f"🛰️ Geostationary Stream ({len(geo_gdf)} scans · 10m cadence)", show=True)
+        
+        # Group by facility location to provide clean site summaries and avoid marker clutter
+        # Find unique facility locations
+        site_groups = geo_gdf.groupby(["latitude", "longitude"])
+        for (lat, lon), group in site_groups:
+            peak_row = group.sort_values("frp", ascending=False).iloc[0]
+            site_name = peak_row.get("osm_facility_name") or peak_row.get("_mock_site") or "Active Industrial Facility"
+            scans_count = len(group)
+            max_frp = group["frp"].max()
+            sat_name = peak_row.get("satellite", "INSAT-3DR / Himawari-9")
+            
+            popup_html = _build_popup(peak_row, class_col)
+            
+            # Outer radar pulse ring
             folium.CircleMarker(
-                location=[row["latitude"], row["longitude"]],
-                radius=15,
+                location=[lat, lon],
+                radius=26,
                 color="#00E5FF",
                 fill=True,
                 fill_color="#00E5FF",
-                fill_opacity=0.15,
+                fill_opacity=0.10,
                 weight=2,
-                dash_array="5, 5",
-                popup=folium.Popup(popup_html, max_width=380),
-                tooltip=f"🛰️ GEO Rapid Scan {str(row.get('acq_time',''))[:2]}:{str(row.get('acq_time',''))[2:4]} UTC | FRP: {row.get('frp',0):.1f} MW",
+                dash_array="6, 6",
             ).add_to(fg_geo)
+            
+            # Inner distinct core marker with label
+            folium.CircleMarker(
+                location=[lat, lon],
+                radius=14,
+                color="#00B4D8",
+                fill=True,
+                fill_color="#00E5FF",
+                fill_opacity=0.85,
+                weight=2,
+                popup=folium.Popup(popup_html, max_width=380),
+                tooltip=folium.Tooltip(
+                    f"<div style='font-family:Inter,sans-serif;font-size:12px;color:#0f172a;font-weight:700;padding:2px 4px;'>"
+                    f"🛰️ <b>GEO 10-MIN RAPID TRACKING</b><br/>"
+                    f"🏭 <b>{site_name}</b><br/>"
+                    f"📡 Sat: {sat_name}<br/>"
+                    f"🔥 Peak FRP: <b>{max_frp:.1f} MW</b> ({scans_count} scans today)"
+                    f"</div>"
+                ),
+            ).add_to(fg_geo)
+            
         fg_geo.add_to(m)
 
     # ── Map Controls & Dark Styling ───────────────────────────────────────────
